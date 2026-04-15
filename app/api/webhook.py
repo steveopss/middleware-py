@@ -1,6 +1,13 @@
 from fastapi import APIRouter, Depends
-from app.api.deps import get_evolution_client, get_flow_engine, get_session_manager
+from app.api.deps import (
+    get_evolution_client,
+    get_flow_engine,
+    get_session_manager,
+    get_conversation_repository,
+)
 from app.schemas.webhook import WebhookPayload
+from app.models.conversation import Direction
+from app.repositories.conversation import ConversationRepository
 
 router = APIRouter(tags=["webhook"])
 
@@ -11,6 +18,7 @@ async def handle_webhook(
     flow_engine=Depends(get_flow_engine),
     session_manager=Depends(get_session_manager),
     evolution_client=Depends(get_evolution_client),
+    repo: ConversationRepository = Depends(get_conversation_repository),
 ):
     """
     Recebe mensagens da Evolution API e processa no flow engine.
@@ -31,6 +39,14 @@ async def handle_webhook(
     # 2. Gerenciamento de sessão
     session_data = await session_manager.get(phone) or {}
 
+    # PERSISTÊNCIA: Salva mensagem de entrada
+    await repo.save(
+        phone_number=phone,
+        direction=Direction.INBOUND,
+        message=message or "",
+        glpi_ticket_id=session_data.get("glpi_ticket_id"),
+    )
+
     # 3. Processamento no motor de fluxo
     result = await flow_engine.process(message, session_data)
 
@@ -38,6 +54,14 @@ async def handle_webhook(
     new_session_data = {**session_data, **result.session_updates}
     new_session_data["step"] = result.next_step
     await session_manager.set(phone, new_session_data)
+
+    # PERSISTÊNCIA: Salva mensagem de saída
+    await repo.save(
+        phone_number=phone,
+        direction=Direction.OUTBOUND,
+        message=result.response_text or "",
+        glpi_ticket_id=new_session_data.get("glpi_ticket_id"),
+    )
 
     # 5. Resposta via Evolution API
     await evolution_client.send_text(phone, result.response_text)

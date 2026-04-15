@@ -20,8 +20,24 @@ class ConversationRepository:
         glpi_ticket_id: int | None = None,
     ) -> Conversation:
         """Salva uma mensagem de conversa."""
-        raise NotImplementedError
+        conversation = Conversation(
+            phone_number=phone_number,
+            direction=direction,
+            message=message,
+            glpi_ticket_id=glpi_ticket_id,
+        )
+        self._db.add(conversation)
+        await self._db.commit()
+        await self._db.refresh(conversation)
+        return conversation
 
     async def get_by_phone(self, phone_number: str, limit: int = 50) -> list[Conversation]:
         """Busca mensagens por número de telefone."""
-        raise NotImplementedError
+        query = (
+            select(Conversation)
+            .where(Conversation.phone_number == phone_number)
+            .order_by(Conversation.created_at.desc())
+            .limit(limit)
+        )
+        result = await self._db.execute(query)
+        return list(result.scalars().all())
