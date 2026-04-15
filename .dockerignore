@@ -1,0 +1,15 @@
+.git
+.gitignore
+.env
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+tests
+Dockerfile
+docker-compose.yml
+WALKTHROUGH.md
+OPUS_4.6__.md
+V1_IMPLEMENTATION_PLAN.md
+README.md
+LICENSE
