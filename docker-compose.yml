@@ -43,6 +43,50 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  glpidb:
+    image: mariadb:10.11
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: glpi
+      MYSQL_USER: glpi
+      MYSQL_PASSWORD: glpi
+    volumes:
+      - glpi_db_data:/var/lib/mysql
+
+  glpi:
+    image: diouxx/glpi
+    ports:
+      - "8080:80"
+    environment:
+      TIMEZONE: "America/Sao_Paulo"
+    depends_on:
+      - glpidb
+    volumes:
+      - glpi_data:/var/www/html/glpi
+
+  evolution_api:
+    image: atendai/evolution-api
+    ports:
+      - "8081:8080"
+    environment:
+      - SERVER_URL=http://localhost:8081
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=B6D711FCDE4A4FD5936544120E713976
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://middleware:middleware@postgres:5432/middleware
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_api
+      - REDIS_URI=redis://redis:6379/1
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - evolution_instances:/evolution/instances
+
 volumes:
   redis_data:
   postgres_data:
+  glpi_db_data:
+  glpi_data:
+  evolution_instances:
